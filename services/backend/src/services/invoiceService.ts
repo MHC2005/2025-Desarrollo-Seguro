@@ -16,7 +16,35 @@ interface InvoiceRow {
 class InvoiceService {
   static async list( userId: string, status?: string, operator?: string): Promise<Invoice[]> {
     let q = db<InvoiceRow>('invoices').where({ userId: userId });
-    if (status) q = q.andWhereRaw(" status "+ operator + " '"+ status +"'");
+    
+    if (status && operator) {
+      // Validar operador permitido para prevenir inyección SQL
+      const allowedOperators = ['=', '!=', '<>', 'LIKE', 'NOT LIKE'];
+      if (!allowedOperators.includes(operator.toUpperCase())) {
+        throw new Error('Invalid operator');
+      }
+      
+      // Usar parámetros preparados en lugar de concatenación
+      switch(operator.toUpperCase()) {
+        case '=':
+          q = q.andWhere('status', '=', status);
+          break;
+        case '!=':
+        case '<>':
+          q = q.andWhere('status', '!=', status);
+          break;
+        case 'LIKE':
+          q = q.andWhere('status', 'like', status);
+          break;
+        case 'NOT LIKE':
+          q = q.andWhereNot('status', 'like', status);
+          break;
+      }
+    } else if (status) {
+      // Si no hay operador, usar igualdad por defecto
+      q = q.andWhere('status', '=', status);
+    }
+    
     const rows = await q.select();
     const invoices = rows.map(row => ({
       id: row.id,
@@ -36,6 +64,12 @@ class InvoiceService {
     ccv: string,
     expirationDate: string
   ) {
+    // Validar que invoiceId sea un número entero válido
+    const parsedInvoiceId = parseInt(invoiceId, 10);
+    if (isNaN(parsedInvoiceId) || parsedInvoiceId <= 0) {
+      throw new Error('Invalid invoice ID');
+    }
+    
     // use axios to call http://paymentBrand/payments as a POST request
     // with the body containing ccNumber, ccv, expirationDate
     // and handle the response accordingly
@@ -54,6 +88,11 @@ class InvoiceService {
       .update({ status: 'paid' });  
     };
   static async  getInvoice( invoiceId:string): Promise<Invoice> {
+    const parsedInvoiceId = parseInt(invoiceId, 10);
+    if (isNaN(parsedInvoiceId) || parsedInvoiceId <= 0) {
+      throw new Error('Invalid invoice ID');
+    }
+    
     const invoice = await db<InvoiceRow>('invoices').where({ id: invoiceId }).first();
     if (!invoice) {
       throw new Error('Invoice not found');
@@ -66,6 +105,12 @@ class InvoiceService {
     invoiceId: string,
     pdfName: string
   ) {
+    // Validar que invoiceId sea un número entero válido
+    const parsedInvoiceId = parseInt(invoiceId, 10);
+    if (isNaN(parsedInvoiceId) || parsedInvoiceId <= 0) {
+      throw new Error('Invalid invoice ID');
+    }
+    
     // check if the invoice exists
     const invoice = await db<InvoiceRow>('invoices').where({ id: invoiceId }).first();
     if (!invoice) {

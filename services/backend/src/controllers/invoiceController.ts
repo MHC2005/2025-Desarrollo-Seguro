@@ -6,8 +6,22 @@ const listInvoices = async (req: Request, res: Response, next: NextFunction) => 
   try {
     const state = req.query.status as string | undefined;
     const operator = req.query.operator as string | undefined;
+    
+    // Validar operator para prevenir inyección SQL
+    if (operator) {
+      const allowedOperators = ['=', '!=', '<>', 'LIKE', 'NOT LIKE'];
+      if (!allowedOperators.includes(operator.toUpperCase())) {
+        return res.status(400).json({ error: 'Invalid operator. Allowed operators: =, !=, <>, LIKE, NOT LIKE' });
+      }
+    }
+    
+    // Validar que status sea una string válida
+    if (state && typeof state !== 'string') {
+      return res.status(400).json({ error: 'Status parameter must be a string' });
+    }
+    
     const id   = (req as any).user!.id; 
-    const invoices = await InvoiceService.list(id, state,operator);
+    const invoices = await InvoiceService.list(id, state, operator);
     res.json(invoices);
   } catch (err) {
     next(err);
@@ -17,6 +31,13 @@ const listInvoices = async (req: Request, res: Response, next: NextFunction) => 
 const setPaymentCard = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const invoiceId = req.params.id;
+    
+    // Validar que invoiceId sea un número entero válido
+    const parsedInvoiceId = parseInt(invoiceId, 10);
+    if (isNaN(parsedInvoiceId) || parsedInvoiceId <= 0) {
+      return res.status(400).json({ error: 'Invalid invoice ID format' });
+    }
+    
     const paymentBrand = req.body.paymentBrand;
     const ccNumber = req.body.ccNumber;
     const ccv = req.body.ccv;
@@ -44,6 +65,13 @@ const setPaymentCard = async (req: Request, res: Response, next: NextFunction) =
 const getInvoicePDF = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const invoiceId = req.params.id;
+    
+    // Validar que invoiceId sea un número entero válido
+    const parsedInvoiceId = parseInt(invoiceId, 10);
+    if (isNaN(parsedInvoiceId) || parsedInvoiceId <= 0) {
+      return res.status(400).json({ error: 'Invalid invoice ID format' });
+    }
+    
     const pdfName = req.query.pdfName as string | undefined;
 
     if (!pdfName) {
@@ -62,6 +90,13 @@ const getInvoicePDF = async (req: Request, res: Response, next: NextFunction) =>
 const getInvoice = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const invoiceId = req.params.id;
+    
+    // Validación temprana en el controlador
+    const parsedId = parseInt(invoiceId, 10);
+    if (isNaN(parsedId) || parsedId <= 0) {
+      return res.status(400).json({ error: 'Invalid invoice ID format' });
+    }
+    
     const invoice = await InvoiceService.getInvoice(invoiceId);
     res.status(200).json(invoice);
 

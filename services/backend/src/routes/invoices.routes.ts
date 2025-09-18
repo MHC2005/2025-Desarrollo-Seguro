@@ -6,7 +6,7 @@ const router = Router();
 // GET /invoices
 router.get('/', routes.listInvoices);
 
-// GET /invoices
+// GET /invoices/:id
 router.get('/:id', routes.getInvoice);
 
 // POST /invoices/:id/pay

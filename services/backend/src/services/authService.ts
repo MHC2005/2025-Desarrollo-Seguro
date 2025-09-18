@@ -60,10 +60,22 @@ class AuthService {
   }
 
   static async updateUser(user: User) {
+    // Validar que el ID esté presente y sea válido
+    if (!user.id) {
+      throw new Error('User ID is required');
+    }
+    
+    const parsedId = parseInt(user.id, 10);
+    if (isNaN(parsedId) || parsedId <= 0) {
+      throw new Error('Invalid user ID');
+    }
+    
     const existing = await db<UserRow>('users')
       .where({ id: user.id })
       .first();
+      
     if (!existing) throw new Error('User not found');
+    
     await db<UserRow>('users')
       .where({ id: user.id })
       .update({
@@ -73,6 +85,7 @@ class AuthService {
         first_name: user.first_name,
         last_name: user.last_name
       });
+      
     return existing;
   }
 

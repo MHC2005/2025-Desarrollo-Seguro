@@ -74,16 +74,25 @@ const createUser = async (req: Request, res: Response, next: NextFunction) => {
 const updateUser = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.params.id;
   const { username, password, email, first_name, last_name } = req.body;
+  
   try {
-  const user: User = {
+    // Validar que userId sea un número entero válido
+    const parsedUserId = parseInt(userId, 10);
+    if (isNaN(parsedUserId) || parsedUserId <= 0) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    
+    const user: User = {
+      id: parsedUserId.toString(), // Convertir a string según el tipo User
       username,
       password,
       email,
       first_name,
       last_name
     };
+    
     const userDB = await AuthService.updateUser(user);
-      res.status(201).json(userDB);
+    res.status(200).json(userDB);
   } catch (err) {
     next(err);
   }
