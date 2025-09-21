@@ -18,13 +18,11 @@ class InvoiceService {
     let q = db<InvoiceRow>('invoices').where({ userId: userId });
     
     if (status && operator) {
-      // Validar operador permitido para prevenir inyección SQL
       const allowedOperators = ['=', '!=', '<>', 'LIKE', 'NOT LIKE'];
       if (!allowedOperators.includes(operator.toUpperCase())) {
         throw new Error('Invalid operator');
       }
       
-      // Usar parámetros preparados en lugar de concatenación
       switch(operator.toUpperCase()) {
         case '=':
           q = q.andWhere('status', '=', status);
@@ -41,7 +39,6 @@ class InvoiceService {
           break;
       }
     } else if (status) {
-      // Si no hay operador, usar igualdad por defecto
       q = q.andWhere('status', '=', status);
     }
     
@@ -64,7 +61,6 @@ class InvoiceService {
     ccv: string,
     expirationDate: string
   ) {
-    // Validar que invoiceId sea un número entero válido
     const parsedInvoiceId = parseInt(invoiceId, 10);
     if (isNaN(parsedInvoiceId) || parsedInvoiceId <= 0) {
       throw new Error('Invalid invoice ID');

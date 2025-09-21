@@ -76,14 +76,13 @@ const updateUser = async (req: Request, res: Response, next: NextFunction) => {
   const { username, password, email, first_name, last_name } = req.body;
   
   try {
-    // Validar que userId sea un número entero válido
     const parsedUserId = parseInt(userId, 10);
     if (isNaN(parsedUserId) || parsedUserId <= 0) {
       return res.status(400).json({ error: 'Invalid user ID' });
     }
     
     const user: User = {
-      id: parsedUserId.toString(), // Convertir a string según el tipo User
+      id: parsedUserId.toString(), 
       username,
       password,
       email,

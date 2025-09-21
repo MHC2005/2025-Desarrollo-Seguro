@@ -60,7 +60,6 @@ class AuthService {
   }
 
   static async updateUser(user: User) {
-    // Validar que el ID esté presente y sea válido
     if (!user.id) {
       throw new Error('User ID is required');
     }

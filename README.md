@@ -5,6 +5,37 @@ Guía para levantar el proyecto, cargar datos de ejemplo y verificar el estado d
 - Docker Desktop.
 - Puertos libres: 3000 (frontend), 5000 (backend), 5432 (Postgres), 8025 (Mailhog)
 
+## Configuración de Variables de Entorno (Requerido)
+Antes de levantar el proyecto, es necesario configurar las variables de entorno:
+
+1. **Copiar el archivo de ejemplo**:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Editar el archivo `.env`** con valores seguros:
+   ```ini
+   DB_HOST=postgres
+   DB_USER=your_secure_db_user
+   DB_PASS=your_secure_db_password
+   DB_NAME=jwt_api
+   DB_PORT=5432
+
+   JWT_SECRET=your_super_secure_jwt_secret_key_at_least_32_characters_long
+
+   SMTP_HOST=mailhog
+   SMTP_PORT=1025
+   SMTP_USER=your_smtp_user
+   SMTP_PASS=your_smtp_password
+
+   FRONTEND_URL=http://localhost:3000
+   ```
+
+**⚠️ IMPORTANTE**: 
+- **NUNCA** subir el archivo `.env` al repositorio
+- El `JWT_SECRET` debe ser de al menos 32 caracteres y criptográficamente seguro
+- Cambiar todas las credenciales por defecto antes de usar en producción
+
 ## Inicio rápido (Docker)
 1) Construir y levantar servicios
 ```
