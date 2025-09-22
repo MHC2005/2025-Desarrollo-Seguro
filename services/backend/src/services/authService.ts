@@ -1,5 +1,6 @@
 
 import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 import nodemailer from 'nodemailer';
 import db from '../db';
 import { User,UserRow } from '../types/user';
@@ -8,6 +9,7 @@ import ejs from 'ejs';
 
 const RESET_TTL = 1000 * 60 * 60;         // 1h
 const INVITE_TTL = 1000 * 60 * 60 * 24 * 7; // 7d
+const SALT_ROUNDS = 12; // Bcrypt salt rounds for password hashing
 
 class AuthService {
 
@@ -17,13 +19,17 @@ class AuthService {
       .orWhere({ email: user.email })
       .first();
     if (existing) throw new Error('User already exists with that username or email');
+    
+    // Hash password before storing
+    const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
+    
     // create invite token
-    const invite_token = crypto.randomBytes(6).toString('hex');
+    const invite_token = crypto.randomBytes(32).toString('hex'); // Increased from 6 to 32 bytes
     const invite_token_expires = new Date(Date.now() + INVITE_TTL);
     await db<UserRow>('users')
       .insert({
         username: user.username,
-        password: user.password,
+        password: hashedPassword, // Store hashed password
         email: user.email,
         first_name: user.first_name,
         last_name:  user.last_name,
@@ -75,11 +81,14 @@ class AuthService {
       
     if (!existing) throw new Error('User not found');
     
+    // Hash password before updating
+    const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
+    
     await db<UserRow>('users')
       .where({ id: user.id })
       .update({
         username: user.username,
-        password: user.password,
+        password: hashedPassword, // Store hashed password
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name
@@ -94,7 +103,11 @@ class AuthService {
       .andWhere('activated', true)
       .first();
     if (!user) throw new Error('Invalid email or not activated');
-    if (password != user.password) throw new Error('Invalid password');
+    
+    // Use bcrypt to compare password with hash
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) throw new Error('Invalid password');
+    
     return user;
   }
 
@@ -105,7 +118,7 @@ class AuthService {
       .first();
     if (!user) throw new Error('No user with that email or not activated');
 
-    const token = crypto.randomBytes(6).toString('hex');
+    const token = crypto.randomBytes(32).toString('hex'); // Increased from 6 to 32 bytes
     const expires = new Date(Date.now() + RESET_TTL);
 
     await db('users')
@@ -140,10 +153,13 @@ class AuthService {
       .first();
     if (!row) throw new Error('Invalid or expired reset token');
 
+    // Hash new password before storing
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
     await db('users')
       .where({ id: row.id })
       .update({
-        password: newPassword,
+        password: hashedPassword, // Store hashed password
         reset_password_token: null,
         reset_password_expires: null
       });
@@ -156,9 +172,12 @@ class AuthService {
       .first();
     if (!row) throw new Error('Invalid or expired invite token');
 
+    // Hash password before storing
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
     await db('users')
       .update({
-        password: newPassword,
+        password: hashedPassword, // Store hashed password
         invite_token: null,
         invite_token_expires: null
       })

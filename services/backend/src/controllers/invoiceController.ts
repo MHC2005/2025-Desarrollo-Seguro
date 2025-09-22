@@ -35,20 +35,40 @@ const setPaymentCard = async (req: Request, res: Response, next: NextFunction) =
       return res.status(400).json({ error: 'Invalid invoice ID format' });
     }
     
-    const paymentBrand = req.body.paymentBrand;
-    const ccNumber = req.body.ccNumber;
-    const ccv = req.body.ccv;
-    const expirationDate = req.body.expirationDate;
+    const { paymentBrand, ccNumber, ccv, expirationDate } = req.body;
 
     if (!paymentBrand || !ccNumber || !ccv || !expirationDate) {
       return res.status(400).json({ error: 'Missing payment details' });
     }
-    const id   = (req as any).user!.id; 
+
+    // Validate payment brand against whitelist
+    const allowedPaymentBrands = ['visa', 'mastercard', 'master'];
+    if (!allowedPaymentBrands.includes(paymentBrand.toLowerCase())) {
+      return res.status(400).json({ error: 'Invalid payment brand' });
+    }
+
+    // Basic validation for card number format (should be digits only)
+    const cleanCcNumber = ccNumber.replace(/[\s-]/g, '');
+    if (!/^\d{13,19}$/.test(cleanCcNumber)) {
+      return res.status(400).json({ error: 'Invalid card number format' });
+    }
+
+    // Validate CCV (3-4 digits)
+    if (!/^\d{3,4}$/.test(ccv)) {
+      return res.status(400).json({ error: 'Invalid CCV format' });
+    }
+
+    // Validate expiration date (MM/YY or MM/YYYY format)
+    if (!/^(0[1-9]|1[0-2])\/\d{2,4}$/.test(expirationDate)) {
+      return res.status(400).json({ error: 'Invalid expiration date format' });
+    }
+
+    const id = (req as any).user!.id; 
     await InvoiceService.setPaymentCard(
       id,
       invoiceId,
       paymentBrand,
-      ccNumber,
+      cleanCcNumber,
       ccv,
       expirationDate
     );
