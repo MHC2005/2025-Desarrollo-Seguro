@@ -41,9 +41,8 @@ const setPaymentCard = async (req: Request, res: Response, next: NextFunction) =
       return res.status(400).json({ error: 'Missing payment details' });
     }
 
-    // Validate payment brand against whitelist
-    const allowedPaymentBrands = ['visa', 'mastercard', 'master'];
-    if (!allowedPaymentBrands.includes(paymentBrand.toLowerCase())) {
+    // Validate payment brand against whitelist - solo aceptar los valores permitidos
+    if (typeof paymentBrand !== 'string' || !['visa', 'mastercard', 'master'].includes(paymentBrand.toLowerCase())) {
       return res.status(400).json({ error: 'Invalid payment brand' });
     }
 

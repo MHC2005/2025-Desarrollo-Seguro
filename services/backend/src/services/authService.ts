@@ -6,6 +6,7 @@ import db from '../db';
 import { User,UserRow } from '../types/user';
 import jwtUtils from '../utils/jwt';
 import ejs from 'ejs';
+import { validateNoTemplateTokens, sanitizeTemplateInput } from '../utils/templateSecurity';
 
 const RESET_TTL = 1000 * 60 * 60;         // 1h
 const INVITE_TTL = 1000 * 60 * 60 * 24 * 7; // 7d
@@ -14,6 +15,13 @@ const SALT_ROUNDS = 12; // Bcrypt salt rounds for password hashing
 class AuthService {
 
   static async createUser(user: User) {
+    // Validar que los campos de texto no contengan tokens de plantilla
+    if (!validateNoTemplateTokens(user.first_name) || 
+        !validateNoTemplateTokens(user.last_name) || 
+        !validateNoTemplateTokens(user.username)) {
+      throw new Error('Invalid input: template tokens are not allowed in text fields');
+    }
+
     const existing = await db<UserRow>('users')
       .where({ username: user.username })
       .orWhere({ email: user.email })
@@ -46,16 +54,20 @@ class AuthService {
         pass: process.env.SMTP_PASS
       }
     });
-    const link = `${process.env.FRONTEND_URL}/activate-user?token=${invite_token}&username=${user.username}`;
-   
-    const template = `
-      <html>
-        <body>
-          <h1>Hello ${user.first_name} ${user.last_name}</h1>
-          <p>Click <a href="${ link }">here</a> to activate your account.</p>
-        </body>
-      </html>`;
-    const htmlBody = ejs.render(template);
+    const activationLink = `${process.env.FRONTEND_URL}/activate-user?token=${invite_token}&username=${user.username}`;
+
+    // Sanitizar datos antes de pasarlos a la plantilla
+    const templateData = {
+      firstName: user.first_name.replace(/[<%>]/g, ''), // Eliminar tokens de plantilla
+      lastName: user.last_name.replace(/[<%>]/g, ''),
+      activationLink: activationLink
+    };
+    
+    const htmlBody = await ejs.renderFile(
+      './src/templates/activateAccount.ejs',
+      templateData,
+      { async: true }
+    );
     
     await transporter.sendMail({
       from: "info@example.com",
@@ -138,11 +150,25 @@ class AuthService {
       }
     });
 
-    const link = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+    // Sanitizar datos antes de pasarlos a la plantilla
+    const templateData = {
+      firstName: user.first_name.replace(/[<%>]/g, ''), // Eliminar tokens de plantilla
+      lastName: user.last_name.replace(/[<%>]/g, ''),
+      resetLink: resetLink
+    };
+
+    const htmlBody = await ejs.renderFile(
+      './src/templates/resetPassword.ejs',
+      templateData,
+      { async: true }
+    );
+
     await transporter.sendMail({
       to: user.email,
       subject: 'Your password reset link',
-      html: `Click <a href="${link}">here</a> to reset your password.`
+      html: htmlBody
     });
   }
 

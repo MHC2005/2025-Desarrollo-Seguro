@@ -66,11 +66,14 @@ class InvoiceService {
       throw new Error('Invalid invoice ID');
     }
     
-    // Map payment brands to secure endpoints
+    // Configuración segura de endpoints de pago
+    const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'http://localhost:3005';
+    
+    // Map payment brands to secure endpoints usando rutas relativas
     const paymentEndpoints = {
-      'visa': 'visa',
-      'mastercard': 'master', 
-      'master': 'master'
+      'visa': '/visa/payments',
+      'mastercard': '/master/payments', 
+      'master': '/master/payments'
     };
     
     const endpoint = paymentEndpoints[paymentBrand.toLowerCase()];
@@ -83,8 +86,8 @@ class InvoiceService {
       const maskedCcNumber = ccNumber.slice(0, 4) + '****' + ccNumber.slice(-4);
       console.log(`Processing payment for invoice ${invoiceId} with card ending in ${ccNumber.slice(-4)}`);
 
-      // Call the payment service (this should be HTTPS in production)
-      const paymentResponse = await axios.post(`http://${endpoint}/payments`, {
+      // Call the payment service using the configured base URL
+      const paymentResponse = await axios.post(`${PAYMENT_SERVICE_URL}${endpoint}`, {
         ccNumber,
         ccv,
         expirationDate
