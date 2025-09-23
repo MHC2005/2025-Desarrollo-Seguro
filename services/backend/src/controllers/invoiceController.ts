@@ -6,8 +6,20 @@ const listInvoices = async (req: Request, res: Response, next: NextFunction) => 
   try {
     const state = req.query.status as string | undefined;
     const operator = req.query.operator as string | undefined;
+    
+    if (operator) {
+      const allowedOperators = ['=', '!=', '<>', 'LIKE', 'NOT LIKE'];
+      if (!allowedOperators.includes(operator.toUpperCase())) {
+        return res.status(400).json({ error: 'Invalid operator. Allowed operators: =, !=, <>, LIKE, NOT LIKE' });
+      }
+    }
+    
+    if (state && typeof state !== 'string') {
+      return res.status(400).json({ error: 'Status parameter must be a string' });
+    }
+    
     const id   = (req as any).user!.id; 
-    const invoices = await InvoiceService.list(id, state,operator);
+    const invoices = await InvoiceService.list(id, state, operator);
     res.json(invoices);
   } catch (err) {
     next(err);
@@ -17,20 +29,45 @@ const listInvoices = async (req: Request, res: Response, next: NextFunction) => 
 const setPaymentCard = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const invoiceId = req.params.id;
-    const paymentBrand = req.body.paymentBrand;
-    const ccNumber = req.body.ccNumber;
-    const ccv = req.body.ccv;
-    const expirationDate = req.body.expirationDate;
+    
+    const parsedInvoiceId = parseInt(invoiceId, 10);
+    if (isNaN(parsedInvoiceId) || parsedInvoiceId <= 0) {
+      return res.status(400).json({ error: 'Invalid invoice ID format' });
+    }
+    
+    const { paymentBrand, ccNumber, ccv, expirationDate } = req.body;
 
     if (!paymentBrand || !ccNumber || !ccv || !expirationDate) {
       return res.status(400).json({ error: 'Missing payment details' });
     }
-    const id   = (req as any).user!.id; 
+
+    // Validate payment brand against whitelist - solo aceptar los valores permitidos
+    if (typeof paymentBrand !== 'string' || !['visa', 'mastercard', 'master'].includes(paymentBrand.toLowerCase())) {
+      return res.status(400).json({ error: 'Invalid payment brand' });
+    }
+
+    // Basic validation for card number format (should be digits only)
+    const cleanCcNumber = ccNumber.replace(/[\s-]/g, '');
+    if (!/^\d{13,19}$/.test(cleanCcNumber)) {
+      return res.status(400).json({ error: 'Invalid card number format' });
+    }
+
+    // Validate CCV (3-4 digits)
+    if (!/^\d{3,4}$/.test(ccv)) {
+      return res.status(400).json({ error: 'Invalid CCV format' });
+    }
+
+    // Validate expiration date (MM/YY or MM/YYYY format)
+    if (!/^(0[1-9]|1[0-2])\/\d{2,4}$/.test(expirationDate)) {
+      return res.status(400).json({ error: 'Invalid expiration date format' });
+    }
+
+    const id = (req as any).user!.id; 
     await InvoiceService.setPaymentCard(
       id,
       invoiceId,
       paymentBrand,
-      ccNumber,
+      cleanCcNumber,
       ccv,
       expirationDate
     );
@@ -44,6 +81,12 @@ const setPaymentCard = async (req: Request, res: Response, next: NextFunction) =
 const getInvoicePDF = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const invoiceId = req.params.id;
+    
+    const parsedInvoiceId = parseInt(invoiceId, 10);
+    if (isNaN(parsedInvoiceId) || parsedInvoiceId <= 0) {
+      return res.status(400).json({ error: 'Invalid invoice ID format' });
+    }
+    
     const pdfName = req.query.pdfName as string | undefined;
 
     if (!pdfName) {
@@ -62,6 +105,12 @@ const getInvoicePDF = async (req: Request, res: Response, next: NextFunction) =>
 const getInvoice = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const invoiceId = req.params.id;
+    
+    const parsedId = parseInt(invoiceId, 10);
+    if (isNaN(parsedId) || parsedId <= 0) {
+      return res.status(400).json({ error: 'Invalid invoice ID format' });
+    }
+    
     const invoice = await InvoiceService.getInvoice(invoiceId);
     res.status(200).json(invoice);
 

@@ -19,15 +19,19 @@ services:
     ports:
       - "5000:3000"
     environment:
-      - DB_HOST=postgres
-      - DB_USER=user
-      - DB_PASS=password
-      - DB_NAME=jwt_api
-      - DB_PORT=5432
-      - SMTP_HOST=mailhog
-      - SMTP_PORT=1025
-      - SMTP_USER=seed
-      - SMTP_PASS=seed
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=${DB_PORT:-5432}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST:-mailhog}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+    env_file:
+      - .env
     restart: unless-stopped
     depends_on:
       postgres:
@@ -45,9 +49,9 @@ services:
     image: postgres:latest
     container_name: postgres
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: jwt_api
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5432:5432"
     volumes:

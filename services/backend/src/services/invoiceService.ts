@@ -22,7 +22,32 @@ class InvoiceService {
 
   static async list(userId: string, status?: string, operator?: string): Promise<Invoice[]> {
     let q = db<InvoiceRow>('invoices').where({ userId: userId });
-    if (status) q = q.andWhereRaw(" status "+ operator + " '"+ status +"'");
+    
+    if (status && operator) {
+      const allowedOperators = ['=', '!=', '<>', 'LIKE', 'NOT LIKE'];
+      if (!allowedOperators.includes(operator.toUpperCase())) {
+        throw new Error('Invalid operator');
+      }
+      
+      switch(operator.toUpperCase()) {
+        case '=':
+          q = q.andWhere('status', '=', status);
+          break;
+        case '!=':
+        case '<>':
+          q = q.andWhere('status', '!=', status);
+          break;
+        case 'LIKE':
+          q = q.andWhere('status', 'like', status);
+          break;
+        case 'NOT LIKE':
+          q = q.andWhereNot('status', 'like', status);
+          break;
+      }
+    } else if (status) {
+      q = q.andWhere('status', '=', status);
+    }
+    
     const rows = await q.select();
     const invoices = rows.map(row => ({
       id: row.id,
@@ -93,18 +118,31 @@ class InvoiceService {
     invoiceId: string,
     pdfName: string
   ) {
+    // Validar que invoiceId sea un número entero válido
+    const parsedInvoiceId = parseInt(invoiceId, 10);
+    if (isNaN(parsedInvoiceId) || parsedInvoiceId <= 0) {
+      throw new Error('Invalid invoice ID');
+    }
+    
+    // Validate and sanitize pdfName to prevent path traversal
+    const sanitizedPdfName = path.basename(pdfName);
+    if (!sanitizedPdfName || sanitizedPdfName !== pdfName) {
+      throw new Error('Invalid PDF name format');
+    }
+    
     // check if the invoice exists
     const invoice = await db<InvoiceRow>('invoices').where({ id: invoiceId }).first();
     if (!invoice) {
       throw new Error('Invoice not found');
     }
+    
     try {
-      const filePath = `/invoices/${pdfName}`;
+      const filePath = path.join('/invoices', sanitizedPdfName);
       const content = await fs.readFile(filePath, 'utf-8');
       return content;
     } catch (error) {
-      // send the error to the standard output
-      console.error('Error reading receipt file:', error);
+      // Log error without exposing system paths or sensitive information
+      console.error(`Receipt access failed for invoice ${invoiceId}: File not accessible`);
       throw new Error('Receipt not found');
     }
   }
