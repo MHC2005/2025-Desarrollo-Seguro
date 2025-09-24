@@ -124,7 +124,6 @@ z    const rows = await q.select();
       throw new Error('Invalid invoice ID');
     }
     
-    // Validate and sanitize pdfName to prevent path traversal
     const sanitizedPdfName = path.basename(pdfName);
     if (!sanitizedPdfName || sanitizedPdfName !== pdfName) {
       throw new Error('Invalid PDF name format');
@@ -141,7 +140,6 @@ z    const rows = await q.select();
       const content = await fs.readFile(filePath, 'utf-8');
       return content;
     } catch (error) {
-      // Log error without exposing system paths or sensitive information
       console.error(`Receipt access failed for invoice ${invoiceId}: File not accessible`);
       throw new Error('Receipt not found');
     }
