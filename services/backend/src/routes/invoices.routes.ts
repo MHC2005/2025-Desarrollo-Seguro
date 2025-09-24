@@ -11,7 +11,7 @@ async function getInvoiceOwnerId(req: Request): Promise<string | null> {
   const invoice = await db('invoices')
     .where('id', req.params.id)
     .first();
-  return invoice ? invoice.user_id : null;
+  return invoice ? invoice.userId : null;
 }
 
 // GET /invoices - Lista todas las facturas del usuario o todas si es admin
