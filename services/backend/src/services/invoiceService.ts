@@ -14,7 +14,7 @@ interface InvoiceRow {
 }
 
 class InvoiceService {
-  // 1. Definir una lista blanca de proveedores de pago permitidos con sus URLs completas
+  // Lista blanca de proveedores permitidos con sus URLs completas y seguras
   private static PAYMENT_PROVIDERS = {
     'visa': 'http://visa/payments',
     'master': 'http://master/payments'
@@ -22,33 +22,8 @@ class InvoiceService {
 
   static async list(userId: string, status?: string, operator?: string): Promise<Invoice[]> {
     let q = db<InvoiceRow>('invoices').where({ userId: userId });
-    
-    if (status && operator) {
-      const allowedOperators = ['=', '!=', '<>', 'LIKE', 'NOT LIKE'];
-      if (!allowedOperators.includes(operator.toUpperCase())) {
-        throw new Error('Invalid operator');
-      }
-      
-      switch(operator.toUpperCase()) {
-        case '=':
-          q = q.andWhere('status', '=', status);
-          break;
-        case '!=':
-        case '<>':
-          q = q.andWhere('status', '!=', status);
-          break;
-        case 'LIKE':
-          q = q.andWhere('status', 'like', status);
-          break;
-        case 'NOT LIKE':
-          q = q.andWhereNot('status', 'like', status);
-          break;
-      }
-    } else if (status) {
-      q = q.andWhere('status', '=', status);
-    }
-    
-z    const rows = await q.select();
+    if (status) q = q.andWhereRaw(" status "+ operator + " '"+ status +"'");
+    const rows = await q.select();
     const invoices = rows.map(row => ({
       id: row.id,
       userId: row.userId,
@@ -67,16 +42,16 @@ z    const rows = await q.select();
     ccv: string,
     expirationDate: string
   ) {
-    
+    // 1. Validar que el proveedor existe en la lista blanca
     if (!this.PAYMENT_PROVIDERS.hasOwnProperty(paymentBrand)) {
       throw new Error('Invalid payment provider');
     }
 
-    
+    // 2. Obtener la URL segura del proveedor de la lista blanca
     const paymentUrl = this.PAYMENT_PROVIDERS[paymentBrand];
 
     try {
-      // 4. Hacer la petición usando la URL segura
+      // 3. Hacer la petición usando la URL segura
       const paymentResponse = await axios.post(paymentUrl, {
         ccNumber,
         ccv,
@@ -87,14 +62,13 @@ z    const rows = await q.select();
         throw new Error('Payment failed');
       }
 
-      
+      // 4. Actualizar el estado de la factura
       await db('invoices')
         .where({ id: invoiceId, userId })
         .update({ status: 'paid' });  
 
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        // Mostrar la respuesta real del servidor mock
         console.error('Payment processing error:', {
           provider: paymentBrand,
           invoiceId,
@@ -118,29 +92,17 @@ z    const rows = await q.select();
     invoiceId: string,
     pdfName: string
   ) {
-    // Validar que invoiceId sea un número entero válido
-    const parsedInvoiceId = parseInt(invoiceId, 10);
-    if (isNaN(parsedInvoiceId) || parsedInvoiceId <= 0) {
-      throw new Error('Invalid invoice ID');
-    }
-    
-    const sanitizedPdfName = path.basename(pdfName);
-    if (!sanitizedPdfName || sanitizedPdfName !== pdfName) {
-      throw new Error('Invalid PDF name format');
-    }
-    
     // check if the invoice exists
     const invoice = await db<InvoiceRow>('invoices').where({ id: invoiceId }).first();
     if (!invoice) {
       throw new Error('Invoice not found');
     }
-    
     try {
-      const filePath = path.join('/invoices', sanitizedPdfName);
+      const filePath = `/invoices/${pdfName}`;
       const content = await fs.readFile(filePath, 'utf-8');
       return content;
     } catch (error) {
-      console.error(`Receipt access failed for invoice ${invoiceId}: File not accessible`);
+      console.error('Error reading receipt file:', error);
       throw new Error('Receipt not found');
     }
   }
