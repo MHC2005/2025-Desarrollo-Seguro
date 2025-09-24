@@ -48,7 +48,7 @@ class InvoiceService {
       q = q.andWhere('status', '=', status);
     }
     
-    const rows = await q.select();
+z    const rows = await q.select();
     const invoices = rows.map(row => ({
       id: row.id,
       userId: row.userId,
